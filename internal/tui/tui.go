@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"bradenkennedy.com/compass-cli/internal/config"
 	"bradenkennedy.com/compass-cli/internal/mongo"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -32,6 +33,7 @@ type MainModel struct {
 	state     appState
 	focus     focusArea
 	activeTab int
+	theme     Styles
 
 	client        *mongo.Client
 	connectionURI string
@@ -49,17 +51,20 @@ type MainModel struct {
 	height int
 }
 
-func NewMainModel() MainModel {
+func NewMainModel(cfg *config.Config) MainModel {
+	styles := InitStyles(cfg.Theme)
+
 	return MainModel{
 		state:        stateConnect,
 		focus:        focusSidebar,
 		activeTab:    0,
-		connectModel: NewConnectModel(),
-		sidebarModel: NewSidebarModel(),
-		docsModel:    NewDocumentsModel(),
-		schemaModel:  NewSchemaModel(),
-		aggModel:     NewAggregationModel(),
-		idxModel:     NewIndexesModel(),
+		theme:        styles,
+		connectModel: NewConnectModel(styles),
+		sidebarModel: NewSidebarModel(styles),
+		docsModel:    NewDocumentsModel(styles),
+		schemaModel:  NewSchemaModel(styles),
+		aggModel:     NewAggregationModel(styles),
+		idxModel:     NewIndexesModel(styles),
 	}
 }
 
@@ -172,7 +177,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.client = nil
 				}
 				m.state = stateConnect
-				m.connectModel = NewConnectModel()
+				m.connectModel = NewConnectModel(m.theme)
 				m.connectModel.width = m.width
 				m.connectModel.height = m.height
 				return m, m.connectModel.Init()
@@ -275,13 +280,7 @@ func (m MainModel) View() string {
 		return m.connectModel.View()
 	}
 
-	headerStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color(ColorGreen)).
-		Foreground(lipgloss.Color(ColorSlateBg)).
-		Bold(true).
-		Width(m.width)
-
-	header := headerStyle.Render(fmt.Sprintf(
+	header := m.theme.HeaderStyle.Render(fmt.Sprintf(
 		"  MONGODB COMPASS CLI  ·  %s  ·  %s.%s",
 		m.connectionURI, m.dbName, m.collName,
 	))
@@ -290,9 +289,9 @@ func (m MainModel) View() string {
 	var renderedTabs []string
 	for i, t := range tabs {
 		if i == m.activeTab {
-			renderedTabs = append(renderedTabs, ActiveTabStyle.Render(t))
+			renderedTabs = append(renderedTabs, m.theme.ActiveTabStyle.Render(t))
 		} else {
-			renderedTabs = append(renderedTabs, InactiveTabStyle.Render(t))
+			renderedTabs = append(renderedTabs, m.theme.InactiveTabStyle.Render(t))
 		}
 	}
 
@@ -309,7 +308,7 @@ func (m MainModel) View() string {
 		renderedTabs[1],
 		renderedTabs[2],
 		renderedTabs[3],
-		TabGapStyle.Width(tabGapWidth).Render(""),
+		m.theme.TabGapStyle.Width(tabGapWidth).Render(""),
 	)
 
 	var contentView string
@@ -328,16 +327,12 @@ func (m MainModel) View() string {
 
 	var focusLabel string
 	if m.focus == focusSidebar {
-		focusLabel = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorGreen)).Render("Sidebar")
+		focusLabel = m.theme.LabelStyle.Render("Sidebar")
 	} else {
-		focusLabel = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorGreen)).Render("Content")
+		focusLabel = m.theme.LabelStyle.Render("Content")
 	}
 
-	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(ColorMuted)).
-		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
-		Width(m.width)
+	footerStyle := m.theme.FooterStyle.Width(m.width)
 
 	footer := footerStyle.Render(fmt.Sprintf(
 		"  Focus: %s  ·  [Tab] Toggle  ·  [1–4] Tabs  ·  [Esc] Back  ·  [Ctrl+C] Quit",

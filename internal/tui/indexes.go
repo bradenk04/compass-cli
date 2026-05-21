@@ -29,9 +29,10 @@ type IndexesModel struct {
 	width    int
 	height   int
 	focused  bool
+	theme    Styles
 }
 
-func NewIndexesModel() IndexesModel {
+func NewIndexesModel(theme Styles) IndexesModel {
 	columns := []table.Column{
 		{Title: "Name", Width: 25},
 		{Title: "Keys", Width: 35},
@@ -49,17 +50,17 @@ func NewIndexesModel() IndexesModel {
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+		BorderForeground(theme.BorderColor).
 		BorderBottom(true).
 		Bold(true).
-		Foreground(lipgloss.Color(ColorGreen))
+		Foreground(theme.SuccessStyle.GetForeground())
 	s.Selected = s.Selected.
-		Foreground(lipgloss.Color(ColorSlateBg)).
-		Background(lipgloss.Color(ColorGreen)).
+		Foreground(theme.MainStyle.GetBackground()).
+		Background(theme.SuccessStyle.GetForeground()).
 		Bold(true)
 	t.SetStyles(s)
 
-	return IndexesModel{table: t}
+	return IndexesModel{table: t, theme: theme}
 }
 
 func (m *IndexesModel) SetCollection(client *mongo.Client, db, coll string) tea.Cmd {
@@ -143,7 +144,7 @@ func (m IndexesModel) View() string {
 	case m.loading:
 		body = "\n  Loading indexes..."
 	case m.err != nil:
-		body = "\n  " + ErrorStyle.Render("Error: "+m.err.Error())
+		body = "\n  " + m.theme.ErrorStyle.Render("Error: "+m.err.Error())
 	case len(m.indexes) == 0:
 		body = "\n  No indexes found."
 	default:
@@ -152,13 +153,13 @@ func (m IndexesModel) View() string {
 
 	helpText := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+		BorderForeground(m.theme.BorderColor).
 		Width(m.width - 2).
-		Render("  " + lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render("[r] Reload  [↑/↓] Navigate"))
+		Render("  " + m.theme.TextMutedStyle.Render("[r] Reload  [↑/↓] Navigate"))
 
-	return ContentStyle.Render(
+	return m.theme.ContentStyle.Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			TitleStyle.Render(" INDEXES"),
+			m.theme.TitleStyle.Render(" INDEXES"),
 			body,
 			helpText,
 		),

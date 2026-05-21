@@ -26,6 +26,7 @@ type AggregationModel struct {
 	client   *mongo.Client
 	dbName   string
 	collName string
+	styles   Styles
 	editor   textarea.Model
 	viewport viewport.Model
 	docs     []bson.M
@@ -36,7 +37,7 @@ type AggregationModel struct {
 	focused  bool
 }
 
-func NewAggregationModel() AggregationModel {
+func NewAggregationModel(styles Styles) AggregationModel {
 	ta := textarea.New()
 	ta.Placeholder = `[\n  {\n    "$match": {}\n  }\n]`
 	ta.SetValue("[\n  \n]")
@@ -50,6 +51,7 @@ func NewAggregationModel() AggregationModel {
 	return AggregationModel{
 		editor:   ta,
 		viewport: vp,
+		styles:   styles,
 	}
 }
 
@@ -103,7 +105,7 @@ func (m AggregationModel) Update(msg tea.Msg) (AggregationModel, tea.Cmd) {
 	case AggregationErrorMsg:
 		m.loading = false
 		m.err = msg.Err
-		m.viewport.SetContent(ErrorStyle.Render("Aggregation failed: " + msg.Err.Error()))
+		m.viewport.SetContent(m.styles.ErrorStyle.Render("Aggregation failed: " + msg.Err.Error()))
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -131,7 +133,7 @@ func (m *AggregationModel) updateViewportContent() {
 	}
 
 	var b strings.Builder
-	b.WriteString(TitleStyle.Render(fmt.Sprintf(" RESULTS  ·  %d documents", len(m.docs))) + "\n\n")
+	b.WriteString(m.styles.TitleStyle.Render(fmt.Sprintf(" RESULTS  ·  %d documents", len(m.docs))) + "\n\n")
 
 	for i, doc := range m.docs {
 		bz, err := bson.MarshalExtJSONIndent(doc, true, true, "", "  ")
@@ -139,7 +141,7 @@ func (m *AggregationModel) updateViewportContent() {
 			b.WriteString(fmt.Sprintf("/* error marshaling document %d: %s */\n", i+1, err.Error()))
 			continue
 		}
-		b.WriteString(fmt.Sprintf("/* %d */\n%s\n\n", i+1, HighlightJSON(string(bz))))
+		b.WriteString(fmt.Sprintf("/* %d */\n%s\n\n", i+1, m.styles.HighlightJSON(string(bz))))
 	}
 
 	m.viewport.SetContent(b.String())
@@ -162,14 +164,12 @@ func (m *AggregationModel) SetSize(width, height int) {
 func (m AggregationModel) View() string {
 	leftWidth := m.width / 2
 
-	leftPane := lipgloss.NewStyle().
+	leftPane := m.styles.SidebarStyle.
 		Width(leftWidth).
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
 		Render(
 			lipgloss.JoinVertical(lipgloss.Left,
-				TitleStyle.Render(" PIPELINE EDITOR"),
-				lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render(" JSON array of stages"),
+				m.styles.TitleStyle.Render(" PIPELINE EDITOR"),
+				m.styles.TextMutedStyle.Render(" JSON array of stages"),
 				"\n",
 				m.editor.View(),
 			),
@@ -177,13 +177,11 @@ func (m AggregationModel) View() string {
 
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, m.viewport.View())
 
-	helpText := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+	helpText := m.styles.FooterStyle.
 		Width(m.width - 2).
-		Render("  " + lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render("[ctrl+r] Run  [ctrl+d/u] Scroll results"))
+		Render("  " + m.styles.TextMutedStyle.Render("[ctrl+r] Run  [ctrl+d/u] Scroll results"))
 
-	return ContentStyle.Render(
+	return m.styles.ContentStyle.Render(
 		lipgloss.JoinVertical(lipgloss.Left, panes, helpText),
 	)
 }

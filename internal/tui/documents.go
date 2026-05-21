@@ -43,6 +43,7 @@ type DocumentsModel struct {
 	totalDocs int64
 	cursor    int
 	mode      docMode
+	styles    Styles
 
 	filterInput textinput.Model
 	sortInput   textinput.Model
@@ -63,7 +64,7 @@ type DocumentsModel struct {
 	statusErr bool
 }
 
-func NewDocumentsModel() DocumentsModel {
+func NewDocumentsModel(styles Styles) DocumentsModel {
 	filter := textinput.New()
 	filter.Prompt = "Filter: "
 	filter.Placeholder = "{}"
@@ -103,6 +104,7 @@ func NewDocumentsModel() DocumentsModel {
 		editor:      ta,
 		viewport:    viewport.New(0, 0),
 		mode:        docModeList,
+		styles:      styles,
 	}
 }
 
@@ -371,7 +373,7 @@ func (m *DocumentsModel) updateViewportContent() {
 		return
 	}
 
-	m.viewport.SetContent(HighlightJSON(string(bz)))
+	m.viewport.SetContent(m.styles.HighlightJSON(string(bz)))
 }
 
 func (m *DocumentsModel) SetSize(width, height int) {
@@ -390,15 +392,15 @@ func (m *DocumentsModel) SetSize(width, height int) {
 
 func (m DocumentsModel) View() string {
 	if m.mode == docModeEdit {
-		header := TitleStyle.Render(" DOCUMENT EDITOR") + "\n" +
-			lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render(" Ctrl+S to save  ·  Esc to cancel") + "\n\n"
+		header := m.styles.TitleStyle.Render(" DOCUMENT EDITOR") + "\n" +
+			m.styles.TextMutedStyle.Render(" Ctrl+S to save  ·  Esc to cancel") + "\n\n"
 
 		var errLine string
 		if m.editorErr != nil {
-			errLine = ErrorStyle.Render(m.editorErr.Error()) + "\n\n"
+			errLine = m.styles.ErrorStyle.Render(m.editorErr.Error()) + "\n\n"
 		}
 
-		return ContentStyle.Render(header + errLine + m.editor.View())
+		return m.styles.ContentStyle.Render(header + errLine + m.editor.View())
 	}
 
 	queryBarContent := lipgloss.JoinHorizontal(lipgloss.Top,
@@ -408,9 +410,9 @@ func (m DocumentsModel) View() string {
 		m.skipInput.View(),
 	)
 
-	queryStyle := CardStyle.Width(m.width-4).Padding(0, 1)
+	queryStyle := m.styles.CardStyle.Width(m.width-4).Padding(0, 1)
 	if m.activeInput != -1 {
-		queryStyle = CardActiveStyle.Width(m.width-4).Padding(0, 1)
+		queryStyle = m.styles.CardActiveStyle.Width(m.width-4).Padding(0, 1)
 	}
 	queryBar := queryStyle.Render(queryBarContent)
 
@@ -425,16 +427,14 @@ func (m DocumentsModel) View() string {
 		for i, doc := range m.docs {
 			label := formatDocLabel(doc)
 			if i == m.cursor {
-				listContent += CollSelectedStyle.Width(listWidth-2).Render(label) + "\n"
+				listContent += m.styles.CollSelectedStyle.Width(listWidth-2).Render(label) + "\n"
 			} else {
 				listContent += lipgloss.NewStyle().Width(listWidth-2).Render(label) + "\n"
 			}
 		}
 	}
 
-	listPane := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+	listPane := m.styles.SidebarStyle.
 		Width(listWidth).
 		Height(contentHeight).
 		Render(listContent)
@@ -448,17 +448,15 @@ func (m DocumentsModel) View() string {
 
 	var statusMsg string
 	if m.statusErr {
-		statusMsg = ErrorStyle.Render(m.status)
+		statusMsg = m.styles.ErrorStyle.Render(m.status)
 	} else {
-		statusMsg = SuccessStyle.Render(m.status)
+		statusMsg = m.styles.SuccessStyle.Render(m.status)
 	}
 
-	helpLine := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).
+	helpLine := m.styles.TextMutedStyle.
 		Render("[i] Insert  [e/Enter] Edit  [d] Delete  [r] Refresh  [/] Filter  [s] Sort  [Tab] Cycle inputs  [ctrl+d] Scroll doc")
 
-	statusBar := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+	statusBar := m.styles.FooterStyle.
 		Width(m.width - 2).
 		Render(fmt.Sprintf("  %s  %s", statusMsg, helpLine))
 

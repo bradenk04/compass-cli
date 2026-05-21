@@ -31,11 +31,13 @@ type SchemaModel struct {
 	width    int
 	height   int
 	focused  bool
+	theme    Styles
 }
 
-func NewSchemaModel() SchemaModel {
+func NewSchemaModel(theme Styles) SchemaModel {
 	return SchemaModel{
 		viewport: viewport.New(0, 0),
+		theme:    theme,
 	}
 }
 
@@ -84,7 +86,7 @@ func (m SchemaModel) Update(msg tea.Msg) (SchemaModel, tea.Cmd) {
 	case SchemaErrorMsg:
 		m.loading = false
 		m.err = msg.Err
-		m.viewport.SetContent(ErrorStyle.Render("Schema analysis failed: " + msg.Err.Error()))
+		m.viewport.SetContent(m.theme.ErrorStyle.Render("Schema analysis failed: " + msg.Err.Error()))
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -114,30 +116,30 @@ func (m *SchemaModel) updateViewportContent() {
 	}
 
 	var b strings.Builder
-	b.WriteString(TitleStyle.Render(fmt.Sprintf(" SCHEMA ANALYSIS  ·  sampled %d documents", 100)) + "\n\n")
+	b.WriteString(m.theme.TitleStyle.Render(fmt.Sprintf(" SCHEMA ANALYSIS  ·  sampled %d documents", 100)) + "\n\n")
 
 	for _, f := range m.fields {
-		b.WriteString(fmt.Sprintf("%s\n", KeyStyle.Render("• "+f.Path)))
+		b.WriteString(fmt.Sprintf("%s\n", m.theme.KeyStyle.Render("• "+f.Path)))
 
 		for typeName, count := range f.Types {
 			pct := float64(count) / float64(f.TotalDocCount)
 
-			typeStyle := ValBoolStyle
+			typeStyle := m.theme.ValBoolStyle
 			switch typeName {
 			case "String":
-				typeStyle = ValStrStyle
+				typeStyle = m.theme.ValStrStyle
 			case "Number", "Double":
-				typeStyle = ValNumStyle
+				typeStyle = m.theme.ValNumStyle
 			case "Object", "Array":
-				typeStyle = InfoStyle
+				typeStyle = m.theme.InfoStyle
 			}
 
 			b.WriteString(fmt.Sprintf(
 				"   %s %3d%%  %s  %s\n",
-				SuccessStyle.Render(drawProgressBar(pct, 15)),
+				m.theme.SuccessStyle.Render(drawProgressBar(pct, 15)),
 				int(pct*100),
 				typeStyle.Render(typeName),
-				lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render(fmt.Sprintf("(%d/%d docs)", count, f.TotalDocCount)),
+				m.theme.TextMutedStyle.Render(fmt.Sprintf("(%d/%d docs)", count, f.TotalDocCount)),
 			))
 		}
 		b.WriteString("\n")
@@ -167,11 +169,11 @@ func (m *SchemaModel) SetSize(width, height int) {
 func (m SchemaModel) View() string {
 	helpText := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+		BorderForeground(m.theme.BorderColor).
 		Width(m.width - 2).
-		Render("  " + lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render("[r] Re-analyze  [j/k] Scroll"))
+		Render("  " + m.theme.TextMutedStyle.Render("[r] Re-analyze  [j/k] Scroll"))
 
-	return ContentStyle.Render(
+	return m.theme.ContentStyle.Render(
 		lipgloss.JoinVertical(lipgloss.Left,
 			m.viewport.View(),
 			helpText,

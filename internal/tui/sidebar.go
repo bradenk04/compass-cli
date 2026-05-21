@@ -5,7 +5,6 @@ import (
 
 	"bradenkennedy.com/compass-cli/internal/mongo"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type CollectionSelectedMsg struct {
@@ -23,6 +22,7 @@ type SidebarItem struct {
 type SidebarModel struct {
 	dbs          []mongo.DBInfo
 	flatItems    []SidebarItem
+	styles       Styles
 	cursor       int
 	selectedDb   string
 	selectedColl string
@@ -31,12 +31,13 @@ type SidebarModel struct {
 	focused      bool
 }
 
-func NewSidebarModel() SidebarModel {
+func NewSidebarModel(styles Styles) SidebarModel {
 	return SidebarModel{
 		dbs:       []mongo.DBInfo{},
 		flatItems: []SidebarItem{},
 		cursor:    0,
 		focused:   true,
+		styles:    styles,
 	}
 }
 
@@ -141,12 +142,10 @@ func (m *SidebarModel) toggleExpand(dbName string) {
 }
 
 func (m SidebarModel) View() string {
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		BorderForeground(lipgloss.Color(ColorBorder)).
+	borderStyle := m.styles.SidebarStyle.
 		Height(m.height)
 
-	content := TitleStyle.Bold(true).Render(" DATABASES") + "\n\n"
+	content := m.styles.TitleStyle.Bold(true).Render(" DATABASES") + "\n\n"
 
 	if len(m.flatItems) == 0 {
 		content += "  No databases found."
@@ -171,20 +170,20 @@ func (m SidebarModel) View() string {
 			}
 			dbLabel := icon + item.DbName
 			if isSelected {
-				line = lipgloss.NewStyle().
-					Foreground(lipgloss.Color(ColorGreen)).
+				line = m.styles.LabelStyle.
 					Bold(true).
 					Render(dbLabel)
 			} else {
-				line = DbStyle.Render(dbLabel)
+				line = m.styles.DbStyle.Render(dbLabel)
 			}
 		} else {
 			collLabel := "  " + item.CollName
 			isActive := item.DbName == m.selectedDb && item.CollName == m.selectedColl
 			if isSelected || isActive {
-				line = CollSelectedStyle.Width(m.width - 4).Render(collLabel)
+
+				line = m.styles.CollSelectedStyle.Width(m.width - 4).Render(collLabel)
 			} else {
-				line = CollStyle.Render(collLabel)
+				line = m.styles.CollStyle.Render(collLabel)
 			}
 		}
 

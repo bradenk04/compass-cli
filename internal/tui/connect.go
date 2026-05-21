@@ -21,6 +21,7 @@ type ConnectErrMsg struct {
 type ConnectModel struct {
 	textInput     textinput.Model
 	spinner       spinner.Model
+	styles        Styles
 	loading       bool
 	err           error
 	width         int
@@ -29,7 +30,7 @@ type ConnectModel struct {
 	historyCursor int
 }
 
-func NewConnectModel() ConnectModel {
+func NewConnectModel(styles Styles) ConnectModel {
 	ti := textinput.New()
 	ti.Placeholder = "mongodb://localhost:27017"
 	ti.SetValue("mongodb://localhost:27017")
@@ -39,7 +40,7 @@ func NewConnectModel() ConnectModel {
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorGreen))
+	s.Style = styles.LabelStyle
 
 	history := LoadHistory()
 
@@ -50,6 +51,7 @@ func NewConnectModel() ConnectModel {
 	return ConnectModel{
 		textInput:     ti,
 		spinner:       s,
+		styles:        styles,
 		loading:       false,
 		history:       history,
 		historyCursor: 0,
@@ -139,10 +141,10 @@ func connectCmd(uri string) tea.Cmd {
 func (m ConnectModel) View() string {
 	cardContent := ""
 
-	title := TitleStyle.Render("MONGODB COMPASS CLI")
-	subtitle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Render("Interactive Terminal MongoDB Client")
+	title := m.styles.TitleStyle.Render("MONGODB COMPASS CLI")
+	subtitle := m.styles.SubtitleStyle.Render("Interactive Terminal MongoDB Client")
 
-	inputLabel := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorText)).Bold(true).Render("Connection string (URI):")
+	inputLabel := m.styles.InputLabelStyle.Render("Connection string (URI):")
 
 	inputView := m.textInput.View()
 
@@ -150,20 +152,20 @@ func (m ConnectModel) View() string {
 	if m.loading {
 		statusView = fmt.Sprintf("\n  %s Connecting to database...", m.spinner.View())
 	} else if m.err != nil {
-		statusView = fmt.Sprintf("\n  %s %s", ErrorStyle.Render("Connection failed:"), ErrorStyle.Render(m.err.Error()))
+		statusView = fmt.Sprintf("\n  %s %s", m.styles.ErrorStyle.Render("Connection failed:"), m.styles.ErrorStyle.Render(m.err.Error()))
 	} else {
 		statusView = "\n  Press Enter to connect. Esc to exit."
 	}
 
 	var historyView string
 	if len(m.history) > 0 {
-		historyView = "\n" + lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted)).Bold(true).Render("Recent Connections (use Up/Down to select):") + "\n"
+		historyView = "\n" + m.styles.TextMutedStyle.Bold(true).Render("Recent Connections (use Up/Down to select):") + "\n"
 		for i, h := range m.history {
 			indicator := "  "
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorMuted))
+			style := m.styles.TextMutedStyle
 			if i == m.historyCursor {
 				indicator = "➔ "
-				style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorGreen)).Bold(true)
+				style = m.styles.TextMutedStyle.Bold(true)
 			}
 			displayUri := h
 			if len(displayUri) > 54 {
@@ -183,7 +185,7 @@ func (m ConnectModel) View() string {
 		statusView,
 	)
 
-	card := CardStyle.
+	card := m.styles.CardStyle.
 		Width(60).
 		Align(lipgloss.Left).
 		Render(cardContent)
