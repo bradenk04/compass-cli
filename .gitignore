@@ -1,6 +1,8 @@
 # Build output
 compass
+compass-cli
 compass.exe
+compass-cli.exe
 dist/
 
 # IDE
@@ -15,3 +17,4 @@ Thumbs.db
 # Go
 *.test
 *.out
+
