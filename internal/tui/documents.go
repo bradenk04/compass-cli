@@ -36,13 +36,13 @@ type DocsErrorMsg struct {
 type DocSavedMsg struct{}
 
 type DocumentsModel struct {
-	client   *mongo.Client
-	dbName   string
-	collName string
-	docs     []bson.M
+	client    *mongo.Client
+	dbName    string
+	collName  string
+	docs      []bson.M
 	totalDocs int64
-	cursor   int
-	mode     docMode
+	cursor    int
+	mode      docMode
 
 	filterInput textinput.Model
 	sortInput   textinput.Model
@@ -50,7 +50,7 @@ type DocumentsModel struct {
 	skipInput   textinput.Model
 	activeInput int
 
-	editor   textarea.Model
+	editor    textarea.Model
 	editorErr error
 	isNewDoc  bool
 
@@ -282,7 +282,7 @@ func (m DocumentsModel) Update(msg tea.Msg) (DocumentsModel, tea.Cmd) {
 				if len(m.docs) > 0 {
 					m.mode = docModeEdit
 					m.isNewDoc = false
-					bz, _ := json.MarshalIndent(m.docs[m.cursor], "", "  ")
+					bz, _ := bson.MarshalExtJSONIndent(m.docs[m.cursor], true, true, "", "  ")
 					m.editor.SetValue(string(bz))
 					m.editor.Focus()
 					m.editorErr = nil
@@ -305,10 +305,7 @@ func (m DocumentsModel) Update(msg tea.Msg) (DocumentsModel, tea.Cmd) {
 				return m, nil
 			case "ctrl+s":
 				var doc bson.M
-				err := json.Unmarshal([]byte(m.editor.Value()), &doc)
-				if err != nil {
-					err = bson.UnmarshalExtJSON([]byte(m.editor.Value()), true, &doc)
-				}
+				err := bson.UnmarshalExtJSON([]byte(m.editor.Value()), true, &doc)
 				if err != nil {
 					m.editorErr = fmt.Errorf("JSON syntax error: %w", err)
 					return m, nil
@@ -411,9 +408,9 @@ func (m DocumentsModel) View() string {
 		m.skipInput.View(),
 	)
 
-	queryStyle := CardStyle.Width(m.width - 4).Padding(0, 1)
+	queryStyle := CardStyle.Width(m.width-4).Padding(0, 1)
 	if m.activeInput != -1 {
-		queryStyle = CardActiveStyle.Width(m.width - 4).Padding(0, 1)
+		queryStyle = CardActiveStyle.Width(m.width-4).Padding(0, 1)
 	}
 	queryBar := queryStyle.Render(queryBarContent)
 
@@ -428,9 +425,9 @@ func (m DocumentsModel) View() string {
 		for i, doc := range m.docs {
 			label := formatDocLabel(doc)
 			if i == m.cursor {
-				listContent += CollSelectedStyle.Width(listWidth - 2).Render(label) + "\n"
+				listContent += CollSelectedStyle.Width(listWidth-2).Render(label) + "\n"
 			} else {
-				listContent += lipgloss.NewStyle().Width(listWidth - 2).Render(label) + "\n"
+				listContent += lipgloss.NewStyle().Width(listWidth-2).Render(label) + "\n"
 			}
 		}
 	}
